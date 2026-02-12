@@ -237,8 +237,6 @@ with tab1:
 # -------------------------
 with tab2:
 
-    st.subheader("Run Intensity by Region – RHB vs LHB")
-
     # Split data
     rhb_df = bowler_df[bowler_df["Batsman Type"] == "RHB"]
     lhb_df = bowler_df[bowler_df["Batsman Type"] == "LHB"]
