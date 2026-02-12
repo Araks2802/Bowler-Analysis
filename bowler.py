@@ -92,9 +92,16 @@ team_flags = {
 # =========================
 # LOAD DATA
 # =========================
+# =========================
+# GOOGLE SHEETS CONFIG
+# =========================
+sheet_id = "1js8s1QySOIUDcIED7rAvWOD3nd10X1lX7iO3R9oU4gM"
+sheet_name = "Sheet1"
+sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+
 @st.cache_data
 def load_data():
-    df = pd.read_excel("Match Data.xlsx")
+    df = pd.read_csv(sheet_url)
     df.columns = df.columns.str.strip()
     return df
 
