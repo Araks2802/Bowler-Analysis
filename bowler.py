@@ -365,7 +365,7 @@ with tab2:
         **Dot:** {lhb_stats[4]}%  
         **Hitting Stumps:** {lhb_stats[5]}%  
         """)
-        fig_lhb = plot_wagon(lhb_df, "LHB Wagon Wheel (Mirrored)", mirror=True)
+        fig_lhb = plot_wagon(lhb_df, "LHB Wagon Wheel", mirror=True)
         st.pyplot(fig_lhb)
 
 
