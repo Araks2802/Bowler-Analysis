@@ -41,7 +41,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# TEAM COLORS
+# TEAM COLORS & FLAGS
 # =========================
 team_colors = {
     "India": ("#FF9933", "#000080", "#138808"),
@@ -90,10 +90,7 @@ team_flags = {
 }
 
 # =========================
-# LOAD DATA
-# =========================
-# =========================
-# GOOGLE SHEETS CONFIG
+# LOAD DATA FROM GOOGLE SHEETS
 # =========================
 sheet_id = "1js8s1QySOIUDcIED7rAvWOD3nd10X1lX7iO3R9oU4gM"
 sheet_name = "Sheet1"
@@ -178,15 +175,14 @@ for col, (title, value) in zip([m1,m2,m3,m4,m5,m6], metrics):
 
 st.markdown("---")
 
-# -------------------------
-# VISUALIZATIONS WITH NOTES
-# -------------------------
+# =========================
+# VISUALIZATIONS & NOTES
+# =========================
 st.markdown('<div class="section-title">Visualizations & Key Insights</div>', unsafe_allow_html=True)
 tab1, tab2, tab3 = st.tabs(["Pitch Map", "Wagon Wheel", "Economy per Length"])
 
-
 # -------------------------
-# 🏏 PITCH MAP
+# PITCH MAP
 # -------------------------
 with tab1:
     col_chart, col_notes = st.columns([1,2])
@@ -237,7 +233,7 @@ with tab1:
             st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
 
 # -------------------------
-# 🌍 WAGON WHEEL
+# WAGON WHEEL
 # -------------------------
 with tab2:
     col_chart, col_notes = st.columns([1,2])
@@ -247,48 +243,53 @@ with tab2:
         fig2.patch.set_facecolor('#0F172A')
         ax2.set_facecolor('#0F172A')
 
-        numeric_df = bowler_df[bowler_df["Shot_Area"].apply(lambda x: str(x).isdigit())].copy()
+        # SAFE numeric Shot_Area
+        numeric_df = bowler_df.copy()
+        numeric_df = numeric_df[pd.to_numeric(numeric_df["Shot_Area"], errors='coerce').notnull()]
         numeric_df["Shot_Area"] = numeric_df["Shot_Area"].astype(int)
-        zone_runs = numeric_df.groupby("Shot_Area")["Bat_Runs"].sum()
-        max_runs = zone_runs.max() if not zone_runs.empty else 1
 
-        zone_labels = {1:"Third Man",2:"Point",3:"Cover",4:"Long Off",
-                       5:"Long On",6:"Mid-wicket",7:"Square Leg",8:"Fine Leg"}
+        if numeric_df.empty:
+            st.warning("No valid Shot_Area data to display the wagon wheel for this bowler.")
+        else:
+            zone_runs = numeric_df.groupby("Shot_Area")["Bat_Runs"].sum()
+            max_runs = zone_runs.max() if not zone_runs.empty else 1
+            zone_labels = {1:"Third Man",2:"Point",3:"Cover",4:"Long Off",
+                           5:"Long On",6:"Mid-wicket",7:"Square Leg",8:"Fine Leg"}
 
-        for zone in range(1,9):
-            angle_start = (np.pi/2)+(zone-1)*(np.pi/4)
-            angle_mid = angle_start+(np.pi/8)
-            runs_zone = zone_runs.get(zone,0)
-            intensity = runs_zone/max_runs if max_runs>0 else 0
+            for zone in range(1,9):
+                angle_start = (np.pi/2)+(zone-1)*(np.pi/4)
+                angle_mid = angle_start+(np.pi/8)
+                runs_zone = zone_runs.get(zone,0)
+                intensity = runs_zone/max_runs if max_runs>0 else 0
 
-            wedge = plt.matplotlib.patches.Wedge(
-                (0,0),1,
-                np.degrees(angle_start),
-                np.degrees(angle_start+np.pi/4),
-                facecolor=plt.cm.coolwarm(intensity),
-                edgecolor="white"
-            )
-            ax2.add_patch(wedge)
+                wedge = plt.matplotlib.patches.Wedge(
+                    (0,0),1,
+                    np.degrees(angle_start),
+                    np.degrees(angle_start+np.pi/4),
+                    facecolor=plt.cm.coolwarm(intensity),
+                    edgecolor="white"
+                )
+                ax2.add_patch(wedge)
+                ax2.text(0.8*np.cos(angle_mid),0.8*np.sin(angle_mid),
+                         zone_labels[zone],ha="center",va="center",
+                         fontsize=7,color="white")
+                ax2.text(0.5*np.cos(angle_mid),0.5*np.sin(angle_mid),
+                         str(int(runs_zone)),ha="center",va="center",
+                         fontsize=10,fontweight="bold",color="white")
 
-            ax2.text(0.8*np.cos(angle_mid),0.8*np.sin(angle_mid),
-                     zone_labels[zone],ha="center",va="center",
-                     fontsize=7,color="white")
-            ax2.text(0.5*np.cos(angle_mid),0.5*np.sin(angle_mid),
-                     str(int(runs_zone)),ha="center",va="center",
-                     fontsize=10,fontweight="bold",color="white")
-
-        ax2.set_xlim(-1.2,1.2)
-        ax2.set_ylim(-1.2,1.2)
-        ax2.axis("off")
-        st.pyplot(fig2)
-        st.markdown('<div class="small-note">All batsmen considered right-handers</div>', unsafe_allow_html=True)
+            ax2.set_xlim(-1.2,1.2)
+            ax2.set_ylim(-1.2,1.2)
+            ax2.axis("off")
+            st.pyplot(fig2)
+            st.markdown('<div class="small-note">All batsmen considered right-handers</div>', unsafe_allow_html=True)
 
     with col_notes:
         st.markdown("**Key Notes:**")
         notes = []
-        top_zones = zone_runs.sort_values(ascending=False).head(2)
-        for zone, runs in top_zones.items():
-            notes.append(f"- Most runs scored in {zone_labels[zone]}: {runs} runs")
+        if not numeric_df.empty:
+            top_zones = zone_runs.sort_values(ascending=False).head(2)
+            for zone, runs in top_zones.items():
+                notes.append(f"- Most runs scored in {zone_labels[zone]}: {runs} runs")
         for n in notes:
             st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
 
