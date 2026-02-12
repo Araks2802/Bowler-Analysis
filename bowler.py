@@ -96,7 +96,7 @@ sheet_id = "1js8s1QySOIUDcIED7rAvWOD3nd10X1lX7iO3R9oU4gM"
 sheet_name = "Sheet1"
 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
 
-@st.cache_data(ttl=60)
+@st.cache_data
 def load_data():
     df = pd.read_csv(sheet_url)
     df.columns = df.columns.str.strip()
@@ -233,65 +233,143 @@ with tab1:
             st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
 
 # -------------------------
-# WAGON WHEEL
+# WAGON WHEEL (RHB vs LHB)
 # -------------------------
 with tab2:
-    col_chart, col_notes = st.columns([1,2])
-    with col_chart:
-        st.subheader("Run Intensity by Region")
-        fig2, ax2 = plt.subplots(figsize=(5,5))
-        fig2.patch.set_facecolor('#0F172A')
-        ax2.set_facecolor('#0F172A')
 
-        # SAFE numeric Shot_Area
-        numeric_df = bowler_df.copy()
+    st.subheader("Run Intensity by Region – RHB vs LHB")
+
+    # Split data
+    rhb_df = bowler_df[bowler_df["Batsman Type"] == "RHB"]
+    lhb_df = bowler_df[bowler_df["Batsman Type"] == "LHB"]
+
+    # -------------------------
+    # STATS FUNCTION
+    # -------------------------
+    def calculate_stats(df_type):
+        valid = df_type[df_type["Valid_Ball"] == 1]
+
+        balls = len(valid)
+        runs = df_type["Total_Runs"].sum()
+        wickets = df_type["Out"].sum()
+        economy = round(runs / (balls / 6), 2) if balls > 0 else 0
+
+        dot_balls = len(valid[valid["Bat_Runs"] == 0])
+        dot_pct = round((dot_balls / balls) * 100, 1) if balls > 0 else 0
+
+        stump_hits = len(valid[valid["Hitting_Stumps"] == 1])
+        stump_pct = round((stump_hits / balls) * 100, 1) if balls > 0 else 0
+
+        return balls, runs, wickets, economy, dot_pct, stump_pct
+
+    rhb_stats = calculate_stats(rhb_df)
+    lhb_stats = calculate_stats(lhb_df)
+
+    # -------------------------
+    # WAGON WHEEL FUNCTION
+    # -------------------------
+    def plot_wagon(df_type, title, mirror=False):
+
+        fig, ax = plt.subplots(figsize=(5,5))
+        fig.patch.set_facecolor('#0F172A')
+        ax.set_facecolor('#0F172A')
+
+        numeric_df = df_type.copy()
         numeric_df = numeric_df[pd.to_numeric(numeric_df["Shot_Area"], errors='coerce').notnull()]
         numeric_df["Shot_Area"] = numeric_df["Shot_Area"].astype(int)
 
         if numeric_df.empty:
-            st.warning("No valid Shot_Area data to display the wagon wheel for this bowler.")
-        else:
-            zone_runs = numeric_df.groupby("Shot_Area")["Bat_Runs"].sum()
-            max_runs = zone_runs.max() if not zone_runs.empty else 1
-            zone_labels = {1:"Third Man",2:"Point",3:"Cover",4:"Long Off",
-                           5:"Long On",6:"Mid-wicket",7:"Square Leg",8:"Fine Leg"}
+            ax.text(0, 0, "No Data", ha="center", va="center",
+                    color="white", fontsize=14)
+            ax.set_xlim(-1,1)
+            ax.set_ylim(-1,1)
+            ax.axis("off")
+            return fig
 
-            for zone in range(1,9):
-                angle_start = (np.pi/2)+(zone-1)*(np.pi/4)
-                angle_mid = angle_start+(np.pi/8)
-                runs_zone = zone_runs.get(zone,0)
-                intensity = runs_zone/max_runs if max_runs>0 else 0
+        zone_runs = numeric_df.groupby("Shot_Area")["Bat_Runs"].sum()
+        max_runs = zone_runs.max() if not zone_runs.empty else 1
 
-                wedge = plt.matplotlib.patches.Wedge(
-                    (0,0),1,
-                    np.degrees(angle_start),
-                    np.degrees(angle_start+np.pi/4),
-                    facecolor=plt.cm.coolwarm(intensity),
-                    edgecolor="white"
-                )
-                ax2.add_patch(wedge)
-                ax2.text(0.8*np.cos(angle_mid),0.8*np.sin(angle_mid),
-                         zone_labels[zone],ha="center",va="center",
-                         fontsize=7,color="white")
-                ax2.text(0.5*np.cos(angle_mid),0.5*np.sin(angle_mid),
-                         str(int(runs_zone)),ha="center",va="center",
-                         fontsize=10,fontweight="bold",color="white")
+        zone_labels = {
+            1:"Third Man",2:"Point",3:"Cover",4:"Long Off",
+            5:"Long On",6:"Mid-wicket",7:"Square Leg",8:"Fine Leg"
+        }
 
-            ax2.set_xlim(-1.2,1.2)
-            ax2.set_ylim(-1.2,1.2)
-            ax2.axis("off")
-            st.pyplot(fig2)
-            st.markdown('<div class="small-note">All batsmen considered right-handers</div>', unsafe_allow_html=True)
+        for zone in range(1,9):
 
-    with col_notes:
-        st.markdown("**Key Notes:**")
-        notes = []
-        if not numeric_df.empty:
-            top_zones = zone_runs.sort_values(ascending=False).head(2)
-            for zone, runs in top_zones.items():
-                notes.append(f"- Most runs scored in {zone_labels[zone]}: {runs} runs")
-        for n in notes:
-            st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
+            # Normal angle (RHB)
+            angle_start = (np.pi/2)+(zone-1)*(np.pi/4)
+
+            # Mirror for LHB
+            if mirror:
+                angle_start = (np.pi/2) - (zone)*(np.pi/4)
+
+            angle_mid = angle_start + (np.pi/8)
+
+            runs_zone = zone_runs.get(zone,0)
+            intensity = runs_zone/max_runs if max_runs>0 else 0
+
+            wedge = plt.matplotlib.patches.Wedge(
+                (0,0),1,
+                np.degrees(angle_start),
+                np.degrees(angle_start+np.pi/4),
+                facecolor=plt.cm.coolwarm(intensity),
+                edgecolor="white"
+            )
+            ax.add_patch(wedge)
+
+            ax.text(0.8*np.cos(angle_mid),
+                    0.8*np.sin(angle_mid),
+                    zone_labels[zone],
+                    ha="center",va="center",
+                    fontsize=7,color="white")
+
+            ax.text(0.5*np.cos(angle_mid),
+                    0.5*np.sin(angle_mid),
+                    str(int(runs_zone)),
+                    ha="center",va="center",
+                    fontsize=10,fontweight="bold",
+                    color="white")
+
+        ax.set_xlim(-1.2,1.2)
+        ax.set_ylim(-1.2,1.2)
+        ax.axis("off")
+        ax.set_title(title, color="white", fontsize=12)
+
+        return fig
+
+    # -------------------------
+    # DISPLAY SIDE BY SIDE
+    # -------------------------
+    col_rhb, col_lhb = st.columns(2)
+
+    # -------- RHB --------
+    with col_rhb:
+        st.markdown("### 🟢 vs Right Hand Batters (RHB)")
+        st.markdown(f"""
+        **Balls:** {rhb_stats[0]}  
+        **Runs:** {rhb_stats[1]}  
+        **Wickets:** {rhb_stats[2]}  
+        **Economy:** {rhb_stats[3]}  
+        **Dot:** {rhb_stats[4]}%  
+        **Hitting Stumps:** {rhb_stats[5]}%  
+        """)
+        fig_rhb = plot_wagon(rhb_df, "RHB Wagon Wheel", mirror=False)
+        st.pyplot(fig_rhb)
+
+    # -------- LHB --------
+    with col_lhb:
+        st.markdown("### 🔵 vs Left Hand Batters (LHB)")
+        st.markdown(f"""
+        **Balls:** {lhb_stats[0]}  
+        **Runs:** {lhb_stats[1]}  
+        **Wickets:** {lhb_stats[2]}  
+        **Economy:** {lhb_stats[3]}  
+        **Dot:** {lhb_stats[4]}%  
+        **Hitting Stumps:** {lhb_stats[5]}%  
+        """)
+        fig_lhb = plot_wagon(lhb_df, "LHB Wagon Wheel (Mirrored)", mirror=True)
+        st.pyplot(fig_lhb)
+
 
 # -------------------------
 # ECONOMY PER LENGTH
