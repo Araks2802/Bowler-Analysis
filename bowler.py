@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib
 
 st.set_page_config(layout="wide")
 
@@ -181,9 +182,9 @@ st.markdown("---")
 st.markdown('<div class="section-title">Visualizations & Key Insights</div>', unsafe_allow_html=True)
 tab1, tab2, tab3 = st.tabs(["Pitch Map", "Wagon Wheel", "Economy per Length"])
 
-# -------------------------
+# =========================
 # PITCH MAP
-# -------------------------
+# ==========================
 with tab1:
     col_chart, col_notes = st.columns([1,2])
     with col_chart:
@@ -232,53 +233,39 @@ with tab1:
         for n in notes:
             st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
 
-# -------------------------
-# WAGON WHEEL (RHB vs LHB)
-# -------------------------
+# =========================
+# WAGON WHEEL (RHB vs LHB) with blue-red gradient and colorbar
+# ==========================
 with tab2:
 
-    # Split data
-    rhb_df = bowler_df[bowler_df["Batsman Type"] == "RHB"]
-    lhb_df = bowler_df[bowler_df["Batsman Type"] == "LHB"]
+    rhb_df = bowler_df[bowler_df["Batsman Type"]=="RHB"]
+    lhb_df = bowler_df[bowler_df["Batsman Type"]=="LHB"]
 
-    # -------------------------
-    # STATS FUNCTION
-    # -------------------------
     def calculate_stats(df_type):
         valid = df_type[df_type["Valid_Ball"] == 1]
-
         balls = len(valid)
         runs = df_type["Total_Runs"].sum()
         wickets = df_type["Out"].sum()
         economy = round(runs / (balls / 6), 2) if balls > 0 else 0
-
-        dot_balls = len(valid[valid["Bat_Runs"] == 0])
-        dot_pct = round((dot_balls / balls) * 100, 1) if balls > 0 else 0
-
-        stump_hits = len(valid[valid["Hitting_Stumps"] == 1])
-        stump_pct = round((stump_hits / balls) * 100, 1) if balls > 0 else 0
-
+        dot_balls = len(valid[valid["Bat_Runs"]==0])
+        dot_pct = round((dot_balls / balls)*100,1) if balls>0 else 0
+        stump_hits = len(valid[valid["Hitting_Stumps"]==1])
+        stump_pct = round((stump_hits/balls)*100,1) if balls>0 else 0
         return balls, runs, wickets, economy, dot_pct, stump_pct
 
     rhb_stats = calculate_stats(rhb_df)
     lhb_stats = calculate_stats(lhb_df)
 
-    # -------------------------
-    # WAGON WHEEL FUNCTION
-    # -------------------------
     def plot_wagon(df_type, title, mirror=False):
-
         fig, ax = plt.subplots(figsize=(5,5))
         fig.patch.set_facecolor('#0F172A')
         ax.set_facecolor('#0F172A')
 
         numeric_df = df_type.copy()
-        numeric_df = numeric_df[pd.to_numeric(numeric_df["Shot_Area"], errors='coerce').notnull()]
+        numeric_df = numeric_df[pd.to_numeric(numeric_df["Shot_Area"],errors='coerce').notnull()]
         numeric_df["Shot_Area"] = numeric_df["Shot_Area"].astype(int)
-
         if numeric_df.empty:
-            ax.text(0, 0, "No Data", ha="center", va="center",
-                    color="white", fontsize=14)
+            ax.text(0,0,"No Data",ha="center",va="center",color="white",fontsize=14)
             ax.set_xlim(-1,1)
             ax.set_ylim(-1,1)
             ax.axis("off")
@@ -286,6 +273,7 @@ with tab2:
 
         zone_runs = numeric_df.groupby("Shot_Area")["Bat_Runs"].sum()
         max_runs = zone_runs.max() if not zone_runs.empty else 1
+        cmap = matplotlib.cm.get_cmap("coolwarm")  # Blue → Red
 
         zone_labels = {
             1:"Third Man",2:"Point",3:"Cover",4:"Long Off",
@@ -293,16 +281,10 @@ with tab2:
         }
 
         for zone in range(1,9):
-
-            # Normal angle (RHB)
             angle_start = (np.pi/2)+(zone-1)*(np.pi/4)
-
-            # Mirror for LHB
             if mirror:
-                angle_start = (np.pi/2) - (zone)*(np.pi/4)
-
+                angle_start = (np.pi/2)-(zone)*(np.pi/4)
             angle_mid = angle_start + (np.pi/8)
-
             runs_zone = zone_runs.get(zone,0)
             intensity = runs_zone/max_runs if max_runs>0 else 0
 
@@ -310,105 +292,126 @@ with tab2:
                 (0,0),1,
                 np.degrees(angle_start),
                 np.degrees(angle_start+np.pi/4),
-                facecolor=plt.cm.coolwarm(intensity),
+                facecolor=cmap(intensity),
                 edgecolor="white"
             )
             ax.add_patch(wedge)
 
-            ax.text(0.8*np.cos(angle_mid),
-                    0.8*np.sin(angle_mid),
-                    zone_labels[zone],
-                    ha="center",va="center",
-                    fontsize=7,color="white")
+            ax.text(0.8*np.cos(angle_mid),0.8*np.sin(angle_mid),
+                    zone_labels[zone],ha="center",va="center",fontsize=7,color="white")
+            ax.text(0.5*np.cos(angle_mid),0.5*np.sin(angle_mid),
+                    str(int(runs_zone)),ha="center",va="center",fontsize=10,fontweight="bold",color="white")
 
-            ax.text(0.5*np.cos(angle_mid),
-                    0.5*np.sin(angle_mid),
-                    str(int(runs_zone)),
-                    ha="center",va="center",
-                    fontsize=10,fontweight="bold",
-                    color="white")
+        # Add colorbar
+        sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=matplotlib.colors.Normalize(vmin=0,vmax=max_runs))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label("Runs Intensity", color="white")
+        cbar.ax.yaxis.set_tick_params(color="white")
+        plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
         ax.set_xlim(-1.2,1.2)
         ax.set_ylim(-1.2,1.2)
         ax.axis("off")
         ax.set_title(title, color="white", fontsize=12)
-
         return fig
 
-    # -------------------------
-    # DISPLAY SIDE BY SIDE
-    # -------------------------
-    col_rhb, col_lhb = st.columns(2)
-
-    # -------- RHB --------
+    col_rhb,col_lhb = st.columns(2)
     with col_rhb:
         st.markdown("### 🟢 vs Right Hand Batters (RHB)")
-        st.markdown(f"""
-        **Balls:** {rhb_stats[0]}  
-        **Runs:** {rhb_stats[1]}  
-        **Wickets:** {rhb_stats[2]}  
-        **Economy:** {rhb_stats[3]}  
-        **Dot:** {rhb_stats[4]}%  
-        **Hitting Stumps:** {rhb_stats[5]}%  
-        """)
-        fig_rhb = plot_wagon(rhb_df, "RHB Wagon Wheel", mirror=False)
-        st.pyplot(fig_rhb)
+        st.markdown(f"**Balls:** {rhb_stats[0]}  \n**Runs:** {rhb_stats[1]}  \n**Wickets:** {rhb_stats[2]}  \n**Economy:** {rhb_stats[3]}  \n**Dot:** {rhb_stats[4]}%  \n**Hitting Stumps:** {rhb_stats[5]}%")
+        st.pyplot(plot_wagon(rhb_df,"RHB Wagon Wheel",mirror=False))
 
-    # -------- LHB --------
     with col_lhb:
         st.markdown("### 🔵 vs Left Hand Batters (LHB)")
-        st.markdown(f"""
-        **Balls:** {lhb_stats[0]}  
-        **Runs:** {lhb_stats[1]}  
-        **Wickets:** {lhb_stats[2]}  
-        **Economy:** {lhb_stats[3]}  
-        **Dot:** {lhb_stats[4]}%  
-        **Hitting Stumps:** {lhb_stats[5]}%  
-        """)
-        fig_lhb = plot_wagon(lhb_df, "LHB Wagon Wheel", mirror=True)
-        st.pyplot(fig_lhb)
+        st.markdown(f"**Balls:** {lhb_stats[0]}  \n**Runs:** {lhb_stats[1]}  \n**Wickets:** {lhb_stats[2]}  \n**Economy:** {lhb_stats[3]}  \n**Dot:** {lhb_stats[4]}%  \n**Hitting Stumps:** {lhb_stats[5]}%")
+        st.pyplot(plot_wagon(lhb_df,"LHB Wagon Wheel",mirror=True))
 
-
-# -------------------------
-# ECONOMY PER LENGTH
-# -------------------------
+# =========================
+# ECONOMY PER LENGTH – separate for RHB & LHB with 4 columns
+# =========================
 with tab3:
-    col_chart, col_notes = st.columns([1,2])
-    with col_chart:
-        st.subheader("Economy per Length")
-        length_stats = valid_balls.groupby("Length").agg(
-            Runs=("Bat_Runs", "sum"),
-            Balls=("Valid_Ball", "count")
+    st.subheader("Economy per Length – RHB vs LHB")
+
+    col_rhb_chart, col_rhb_notes, col_lhb_chart, col_lhb_notes = st.columns([2,1,2,1])
+
+    # -------- RHB --------
+    with col_rhb_chart:
+        df_type = rhb_df
+        length_stats = df_type[df_type["Valid_Ball"]==1].groupby("Length").agg(
+            Runs=("Bat_Runs","sum"),
+            Balls=("Valid_Ball","count")
         ).reindex(["Yorker","Full","Good","Short"], fill_value=0)
-        length_stats["Economy"] = length_stats.apply(lambda row: round(row["Runs"] / (row["Balls"]/6),2) if row["Balls"]>0 else 0, axis=1)
+        length_stats["Economy"] = length_stats.apply(
+            lambda row: round(row["Runs"] / (row["Balls"]/6),2) if row["Balls"]>0 else 0,
+            axis=1
+        )
 
-        fig3, ax3 = plt.subplots(figsize=(5,2.5))
-        fig3.patch.set_facecolor('#0F172A')
-        ax3.set_facecolor('#0F172A')
-
-        bars = ax3.bar(length_stats.index, length_stats["Economy"], color=primary, width=0.5)
-        ax3.set_ylabel("Economy", color="white", fontsize=9)
-        ax3.set_xlabel("Length", color="white", fontsize=9)
-        ax3.tick_params(colors="white", labelsize=9)
-        ax3.spines['bottom'].set_color('white')
-        ax3.spines['left'].set_color('white')
-
+        fig, ax = plt.subplots(figsize=(5,2.5))
+        fig.patch.set_facecolor('#0F172A')
+        ax.set_facecolor('#0F172A')
+        bars = ax.bar(length_stats.index, length_stats["Economy"], color=primary, width=0.5)
+        ax.set_ylabel("Economy", color="white", fontsize=9)
+        ax.set_xlabel("Length", color="white", fontsize=9)
+        ax.tick_params(colors="white", labelsize=9)
+        ax.spines['bottom'].set_color('white')
+        ax.spines['left'].set_color('white')
         for bar in bars:
             height = bar.get_height()
-            ax3.text(bar.get_x() + bar.get_width()/2, height + 0.05, str(round(height,1)),
-                     ha="center", va="bottom", color="white", fontsize=8)
-
+            ax.text(bar.get_x()+bar.get_width()/2, height+0.05, str(round(height,1)),
+                    ha="center", va="bottom", color="white", fontsize=8)
         plt.tight_layout()
-        st.pyplot(fig3)
+        st.pyplot(fig)
 
-    with col_notes:
-        st.markdown("**Key Notes:**")
+    with col_rhb_notes:
+        st.markdown("**Key Notes – RHB:**")
         notes = []
         for length in ["Yorker","Full","Good","Short"]:
             econ = length_stats["Economy"].get(length,0)
-            if econ > 7:
+            if econ > 8.5:
                 notes.append(f"- ⚠ High economy in {length}: {econ}")
             elif 0 < econ < 6:
                 notes.append(f"- Good control in {length}: {econ}")
         for n in notes:
             st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
+
+    # -------- LHB --------
+    with col_lhb_chart:
+        df_type = lhb_df
+        length_stats = df_type[df_type["Valid_Ball"]==1].groupby("Length").agg(
+            Runs=("Bat_Runs","sum"),
+            Balls=("Valid_Ball","count")
+        ).reindex(["Yorker","Full","Good","Short"], fill_value=0)
+        length_stats["Economy"] = length_stats.apply(
+            lambda row: round(row["Runs"] / (row["Balls"]/6),2) if row["Balls"]>0 else 0,
+            axis=1
+        )
+
+        fig, ax = plt.subplots(figsize=(5,2.5))
+        fig.patch.set_facecolor('#0F172A')
+        ax.set_facecolor('#0F172A')
+        bars = ax.bar(length_stats.index, length_stats["Economy"], color=primary, width=0.5)
+        ax.set_ylabel("Economy", color="white", fontsize=9)
+        ax.set_xlabel("Length", color="white", fontsize=9)
+        ax.tick_params(colors="white", labelsize=9)
+        ax.spines['bottom'].set_color('white')
+        ax.spines['left'].set_color('white')
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x()+bar.get_width()/2, height+0.05, str(round(height,1)),
+                    ha="center", va="bottom", color="white", fontsize=8)
+        plt.tight_layout()
+        st.pyplot(fig)
+
+    with col_lhb_notes:
+        st.markdown("**Key Notes – LHB:**")
+        notes = []
+        for length in ["Yorker","Full","Good","Short"]:
+            econ = length_stats["Economy"].get(length,0)
+            if econ > 8.5:
+                notes.append(f"- ⚠ High economy in {length}: {econ}")
+            elif 0 < econ < 6:
+                notes.append(f"- Good control in {length}: {econ}")
+        for n in notes:
+            st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
+
