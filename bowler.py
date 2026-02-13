@@ -3,8 +3,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
+import matplotlib.colors as mcolors
 
 st.set_page_config(layout="wide")
+
+# =========================
+# 🎨 CONTRAST FUNCTION (NEW)
+# =========================
+def get_contrast_text_color(hex_color):
+    hex_color = hex_color.lstrip("#")
+    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    brightness = (0.299*r + 0.587*g + 0.114*b)
+    return "black" if brightness > 150 else "white"
 
 # =========================
 # 🎨 CUSTOM STYLING
@@ -18,7 +28,6 @@ st.markdown("""
     margin-bottom: 10px;
 }
 .metric-title {
-    color: #94A3B8;
     font-size: 14px;
 }
 .metric-value {
@@ -53,7 +62,7 @@ team_colors = {
     "West Indies": ("#800000", "#FFC60B", "#FFFFFF"),
     "New Zealand": ("#000000", "#808080", "#FFFFFF"),
     "Sri Lanka": ("#002366", "#FDB913", "#FFFFFF"),
-    "Bangladesh": ("#006600", "#F42A41", "#FFFFFF"),
+    "Scotland": ("#0065BD", "#FFFFFF", "#000000"),
     "Afghanistan": ("#D52B1E", "#000000", "#FFFFFF"),
     "USA": ("#002868", "#BF0A30", "#FFFFFF"),
     "Ireland": ("#169B62", "#FFFFFF", "#FF8200"),
@@ -68,30 +77,18 @@ team_colors = {
 }
 
 team_flags = {
-    "India": "🇮🇳",
-    "Australia": "🇦🇺",
-    "Pakistan": "🇵🇰",
-    "England": "🏴",
-    "South Africa": "🇿🇦",
-    "West Indies": "🇼🇸",
-    "New Zealand": "🇳🇿",
-    "Sri Lanka": "🇱🇰",
-    "Bangladesh": "🇧🇩",
+    "India": "🇮🇳","Australia": "🇦🇺","Pakistan": "🇵🇰","England": "🏴",
+    "South Africa": "🇿🇦","West Indies": "🇼🇸","New Zealand": "🇳🇿",
+    "Sri Lanka": "🇱🇰","Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
     "Afghanistan": "🇦🇫",
-    "USA": "🇺🇸",
-    "Ireland": "🇮🇪",
-    "Canada": "🇨🇦",
-    "Italy": "🇮🇹",
-    "Netherlands": "🇳🇱",
-    "Namibia": "🇳🇦",
-    "Zimbabwe": "🇿🇼",
-    "Nepal": "🇳🇵",
-    "Oman": "🇴🇲",
-    "UAE": "🇦🇪"
+    "USA": "🇺🇸","Ireland": "🇮🇪","Canada": "🇨🇦","Italy": "🇮🇹",
+    "Netherlands": "🇳🇱","Namibia": "🇳🇦","Zimbabwe": "🇿🇼",
+    "Nepal": "🇳🇵","Oman": "🇴🇲","UAE": "🇦🇪"
 }
 
+
 # =========================
-# LOAD DATA FROM GOOGLE SHEETS
+# LOAD DATA
 # =========================
 sheet_id = "1js8s1QySOIUDcIED7rAvWOD3nd10X1lX7iO3R9oU4gM"
 sheet_name = "Sheet1"
@@ -106,7 +103,7 @@ def load_data():
 df = load_data()
 
 # =========================
-# INLINE FILTERS
+# FILTERS
 # =========================
 st.title("🏏 Bowler Performance – T20 World Cup 2026")
 
@@ -128,7 +125,6 @@ with col3:
         default=sorted(df["Phase"].unique())
     )
 
-# Filter Data
 if opponent != "Overall Tournament":
     bowler_df = bowler_all_df[bowler_all_df["Batting Team"] == opponent]
 else:
@@ -142,7 +138,7 @@ primary, secondary, accent = team_colors.get(bowler_team, ("#333333","#666666","
 flag = team_flags.get(bowler_team, "")
 
 # =========================
-# METRICS SECTION
+# METRICS
 # =========================
 st.markdown(f'<div class="section-title"><b>{bowler}</b> – {bowler_team} {flag}</div>', unsafe_allow_html=True)
 
@@ -156,7 +152,10 @@ dot_pct = round((dot_balls / balls) * 100, 1) if balls > 0 else 0
 stump_hits = len(valid_balls[valid_balls["Hitting_Stumps"]==1])
 stump_pct = round((stump_hits/balls)*100,1) if balls>0 else 0
 
-m1, m2, m3, m4, m5, m6 = st.columns(6, gap="medium")
+text_color = get_contrast_text_color(primary)
+
+m1, m2, m3, m4, m5, m6 = st.columns(6)
+
 metrics = [
     ("Overs", overs),
     ("Runs", runs),
@@ -168,13 +167,18 @@ metrics = [
 
 for col, (title, value) in zip([m1,m2,m3,m4,m5,m6], metrics):
     col.markdown(f"""
-    <div class="metric-card" style="background: linear-gradient(135deg, {accent}, {primary}); border: 1px solid {secondary};">
+    <div class="metric-card" style="
+        background: linear-gradient(135deg, {accent}, {primary});
+        border: 1px solid {secondary};
+        color:{text_color};
+    ">
         <div class="metric-title">{title}</div>
         <div class="metric-value">{value}</div>
     </div>
     """, unsafe_allow_html=True)
 
 st.markdown("---")
+
 
 # =========================
 # VISUALIZATIONS & NOTES
