@@ -353,7 +353,7 @@ if analysis_mode == "Bowler Analysis":
             length_stats = df_type[df_type["Valid_Ball"]==1].groupby("Length").agg(
                 Runs=("Bat_Runs","sum"),
                 Balls=("Valid_Ball","count")
-            ).reindex(["Yorker","Full","Good","Short"], fill_value=0)
+            ).reindex(["Yorker","Full","Good","Short","Full Toss"], fill_value=0)
             length_stats["Economy"] = length_stats.apply(
                 lambda row: round(row["Runs"] / (row["Balls"]/6),2) if row["Balls"]>0 else 0,
                 axis=1
