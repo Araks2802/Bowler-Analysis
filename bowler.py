@@ -378,7 +378,7 @@ if analysis_mode == "Bowler Analysis":
         with col_rhb_notes:
             st.markdown("**Key Notes – RHB:**")
             notes = []
-            for length in ["Yorker","Full","Good","Short"]:
+            for length in ["Yorker","Full","Good","Short","Full Toss"]:
                 econ = length_stats["Economy"].get(length,0)
                 if econ > 8.5:
                     notes.append(f"- ⚠ High economy in {length}: {econ}")
@@ -418,7 +418,7 @@ if analysis_mode == "Bowler Analysis":
         with col_lhb_notes:
             st.markdown("**Key Notes – LHB:**")
             notes = []
-            for length in ["Yorker","Full","Good","Short"]:
+            for length in ["Yorker","Full","Good","Short","Full Toss"]:
                 econ = length_stats["Economy"].get(length,0)
                 if econ > 8.5:
                     notes.append(f"- ⚠ High economy in {length}: {econ}")
