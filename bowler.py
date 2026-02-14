@@ -426,7 +426,6 @@ if analysis_mode == "Bowler Analysis":
                     notes.append(f"- Good control in {length}: {econ}")
             for n in notes:
                 st.markdown(f'<div style="font-size:16px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
-
 # =========================
 # MATCHUPS ANALYSIS
 # =========================
@@ -441,12 +440,12 @@ if analysis_mode == "Matchups":
 
     bowler_all_df = df[df["Bowler Name"] == bowler]
 
-    # ---------- Batsman Selection (dynamic based on bowler) ----------
+    # ---------- Batsman Selection ----------
     with col2:
         batsman_list = sorted(bowler_all_df["Batsman Name"].dropna().unique())
         batsman = st.selectbox("Select Batsman", batsman_list)
 
-    # ---------- Optional Phase Filter ----------
+    # ---------- Phase Filter ----------
     with col3:
         phase_filter = st.multiselect(
             "Select Phases",
@@ -454,46 +453,66 @@ if analysis_mode == "Matchups":
             default=sorted(df["Phase"].unique())
         )
 
-    # Filter dataframe for selected bowler, batsman, and phase
-    matchup_df = bowler_all_df[(bowler_all_df["Batsman Name"] == batsman) &
-                               (bowler_all_df["Phase"].isin(phase_filter))]
+    # Filter dataframe
+    matchup_df = bowler_all_df[
+        (bowler_all_df["Batsman Name"] == batsman) &
+        (bowler_all_df["Phase"].isin(phase_filter))
+    ]
+
     valid_balls = matchup_df[matchup_df["Valid_Ball"] == 1]
 
     bowler_team = matchup_df["Bowling Team"].iloc[0] if not matchup_df.empty else "Unknown"
     primary, secondary, accent = team_colors.get(bowler_team, ("#333333","#666666","#999999"))
     flag = team_flags.get(bowler_team, "")
 
-    # Determine batsman type
     batsman_type = matchup_df["Batsman Type"].iloc[0] if not matchup_df.empty else "RHB"
 
     # =========================
     # HEADER & METRICS
     # =========================
-    st.markdown(f'<div class="section-title"><b>{bowler}</b> vs <b>{batsman}</b></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-title"><b>{bowler}</b> vs <b>{batsman}</b></div>',
+        unsafe_allow_html=True
+    )
+
+    # =========================
+    # UPDATED MATCHUP METRICS
+    # =========================
 
     balls = len(valid_balls)
-    runs = matchup_df["Bat_Runs"].sum()
-    wickets = matchup_df["Out"].sum()
-    overs = balls // 6 + (balls % 6) / 10
-    economy = round(runs / (balls / 6), 2) if balls > 0 else 0
+    runs = valid_balls["Bat_Runs"].sum()
+    wickets = valid_balls["Out"].sum()
+
+    # Dot %
     dot_balls = len(valid_balls[valid_balls["Bat_Runs"] == 0])
     dot_pct = round((dot_balls / balls) * 100, 1) if balls > 0 else 0
-    stump_hits = len(valid_balls[valid_balls["Hitting_Stumps"]==1])
-    stump_pct = round((stump_hits/balls)*100,1) if balls>0 else 0
+
+    # Batsman Strike Rate
+    batsman_sr = round((runs / balls) * 100, 2) if balls > 0 else 0
+
+    # Batsman Average
+    if wickets > 0:
+    	batsman_avg = round(runs / wickets, 2)
+    else: batsman_avg = "N/A"
+
+    # Innings
+    innings = matchup_df["Match_ID"].nunique() if "Match_ID" in matchup_df.columns else 1
 
     text_color = get_contrast_text_color(primary)
 
-    m1, m2, m3, m4, m5 = st.columns(5)
+    m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
 
     metrics = [
-        ("Overs", overs),
+        ("Innings", innings),
+        ("Balls Faced", balls),
         ("Runs", runs),
+        ("Batsman Avg", batsman_avg),
+        ("Batsman SR", batsman_sr),
         ("Wickets", wickets),
-        ("Economy", economy),
         ("Dot %", f"{dot_pct}%"),
     ]
 
-    for col, (title, value) in zip([m1,m2,m3,m4,m5], metrics):
+    for col, (title, value) in zip([m1, m2, m3, m4, m5, m6, m7], metrics):
         col.markdown(f"""
         <div class="metric-card" style="
             background: linear-gradient(135deg, {accent}, {primary});
@@ -508,24 +527,31 @@ if analysis_mode == "Matchups":
     st.markdown("---")
 
     # =========================
-    # WAGON WHEEL & KEY NOTES – 2 columns
+    # WAGON WHEEL & KEY NOTES
     # =========================
     col_wheel, col_notes = st.columns([1,1])
 
     # --- WAGON WHEEL ---
     with col_wheel:
-        st.markdown('<div class="section-title">Wagon Wheel – Batsman Type: {}</div>'.format(batsman_type), unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-title">Wagon Wheel – Batsman Type: {}</div>'.format(batsman_type),
+            unsafe_allow_html=True
+        )
 
         def plot_wagon_single(df_type, title, mirror=False):
-            fig, ax = plt.subplots(figsize=(4,4))  # smaller size
+            fig, ax = plt.subplots(figsize=(4,4))
             fig.patch.set_facecolor('#0F172A')
             ax.set_facecolor('#0F172A')
 
             numeric_df = df_type.copy()
-            numeric_df = numeric_df[pd.to_numeric(numeric_df["Shot_Area"],errors='coerce').notnull()]
+            numeric_df = numeric_df[
+                pd.to_numeric(numeric_df["Shot_Area"], errors='coerce').notnull()
+            ]
             numeric_df["Shot_Area"] = numeric_df["Shot_Area"].astype(int)
+
             if numeric_df.empty:
-                ax.text(0,0,"No Data",ha="center",va="center",color="white",fontsize=14)
+                ax.text(0,0,"No Data",ha="center",va="center",
+                        color="white",fontsize=14)
                 ax.set_xlim(-1,1)
                 ax.set_ylim(-1,1)
                 ax.axis("off")
@@ -533,7 +559,7 @@ if analysis_mode == "Matchups":
 
             zone_runs = numeric_df.groupby("Shot_Area")["Bat_Runs"].sum()
             max_runs = zone_runs.max() if not zone_runs.empty else 1
-            cmap = matplotlib.cm.get_cmap("coolwarm")  # Blue → Red
+            cmap = matplotlib.cm.get_cmap("coolwarm")
 
             zone_labels = {
                 1:"Third Man",2:"Point",3:"Cover",4:"Long Off",
@@ -544,6 +570,7 @@ if analysis_mode == "Matchups":
                 angle_start = (np.pi/2)+(zone-1)*(np.pi/4)
                 if mirror:
                     angle_start = (np.pi/2)-(zone)*(np.pi/4)
+
                 angle_mid = angle_start + (np.pi/8)
                 runs_zone = zone_runs.get(zone,0)
                 intensity = runs_zone/max_runs if max_runs>0 else 0
@@ -558,11 +585,17 @@ if analysis_mode == "Matchups":
                 ax.add_patch(wedge)
 
                 ax.text(0.8*np.cos(angle_mid),0.8*np.sin(angle_mid),
-                        zone_labels[zone],ha="center",va="center",fontsize=6,color="white")
-                ax.text(0.5*np.cos(angle_mid),0.5*np.sin(angle_mid),
-                        str(int(runs_zone)),ha="center",va="center",fontsize=8,fontweight="bold",color="white")
+                        zone_labels[zone],ha="center",va="center",
+                        fontsize=6,color="white")
 
-            sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=matplotlib.colors.Normalize(vmin=0,vmax=max_runs))
+                ax.text(0.5*np.cos(angle_mid),0.5*np.sin(angle_mid),
+                        str(int(runs_zone)),ha="center",va="center",
+                        fontsize=8,fontweight="bold",color="white")
+
+            sm = matplotlib.cm.ScalarMappable(
+                cmap=cmap,
+                norm=matplotlib.colors.Normalize(vmin=0,vmax=max_runs)
+            )
             sm.set_array([])
             cbar = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label("Runs Intensity", color="white")
@@ -573,32 +606,36 @@ if analysis_mode == "Matchups":
             ax.set_ylim(-1.2,1.2)
             ax.axis("off")
             ax.set_title(title, color="white", fontsize=10)
+
             return fig
 
         mirror = True if batsman_type == "LHB" else False
-        st.pyplot(plot_wagon_single(valid_balls, f"{bowler} vs {batsman}", mirror=mirror))
+
+        st.pyplot(
+            plot_wagon_single(valid_balls, f"{bowler} vs {batsman}", mirror=mirror)
+        )
 
     # --- KEY NOTES ---
     with col_notes:
         st.markdown("**Key Notes:**")
+
         notes = []
-        if economy > 8.5:
-            notes.append(f"- ⚠ High economy vs {batsman}: {economy}")
-        elif economy < 6 and economy > 0:
-            notes.append(f"- Bowler is very economical vs {batsman}: {economy}")
+
+        if batsman_avg != "N/A" and batsman_avg < 20 and wickets > 2:
+            notes.append(f"- 🎯 Bowler dominates: Avg {batsman_avg}")
+
+        if batsman_sr > 150:
+            notes.append(f"- ⚠ High strike rate: {batsman_sr}")
 
         if dot_pct > 50:
             notes.append(f"- ⛔ High dot ball %: {dot_pct}%")
-        elif dot_pct < 15 and dot_pct>0:
-            notes.append(f"- Low dot %: {dot_pct}%")
 
-        if wickets > 1:
-            notes.append(f"- 🎯 Has taken {wickets} wickets vs {batsman}")
-
-        if balls < 5:
+        if balls < 6:
             notes.append(f"- ⚠ Only {balls} valid balls bowled, data limited")
 
         for n in notes:
-            st.markdown(f'<div style="font-size:15px;color:white;margin-bottom:5px">{n}</div>', unsafe_allow_html=True)
-
+            st.markdown(
+                f'<div style="font-size:15px;color:white;margin-bottom:5px">{n}</div>',
+                unsafe_allow_html=True
+            )
 
