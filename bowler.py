@@ -472,7 +472,7 @@ if analysis_mode == "Matchups":
     st.markdown(f'<div class="section-title"><b>{bowler}</b> vs <b>{batsman}</b></div>', unsafe_allow_html=True)
 
     balls = len(valid_balls)
-    runs = matchup_df["Total_Runs"].sum()
+    runs = matchup_df["Bat_Runs"].sum()
     wickets = matchup_df["Out"].sum()
     overs = balls // 6 + (balls % 6) / 10
     economy = round(runs / (balls / 6), 2) if balls > 0 else 0
