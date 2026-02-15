@@ -256,7 +256,7 @@ if analysis_mode == "Bowler Analysis":
         def calculate_stats(df_type):
             valid = df_type[df_type["Valid_Ball"] == 1]
             balls = len(valid)
-            runs = df_type["Total_Runs"].sum()
+            runs = df_type["Bat_Runs"].sum()
             wickets = df_type["Out"].sum()
             economy = round(runs / (balls / 6), 2) if balls > 0 else 0
             dot_balls = len(valid[valid["Bat_Runs"]==0])
