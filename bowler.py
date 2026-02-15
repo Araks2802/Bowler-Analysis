@@ -500,19 +500,18 @@ if analysis_mode == "Matchups":
 
     text_color = get_contrast_text_color(primary)
 
-    m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
 
     metrics = [
-        ("Innings", innings),
-        ("Balls Faced", balls),
         ("Runs", runs),
+        ("Balls Faced", balls),
         ("Batsman Avg", batsman_avg),
         ("Batsman SR", batsman_sr),
         ("Wickets", wickets),
         ("Dot %", f"{dot_pct}%"),
     ]
 
-    for col, (title, value) in zip([m1, m2, m3, m4, m5, m6, m7], metrics):
+    for col, (title, value) in zip([m1, m2, m3, m4, m5, m6], metrics):
         col.markdown(f"""
         <div class="metric-card" style="
             background: linear-gradient(135deg, {accent}, {primary});
