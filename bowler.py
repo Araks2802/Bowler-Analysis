@@ -117,7 +117,7 @@ df = load_data()
 if analysis_mode == "Bowler Analysis":
     st.title("🏏 Bowler Performance – T20 World Cup 2026")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([1, 0.8, 1.2])
 
     with col1:
         bowler = st.selectbox("Select Bowler", sorted(df["Bowler Name"].unique()))
@@ -432,7 +432,7 @@ if analysis_mode == "Bowler Analysis":
 if analysis_mode == "Matchups":
     st.title("🏏 Bowler vs Batsman Matchups – T20 World Cup 2026")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([1, 0.8, 1.2])
 
     # ---------- Bowler Selection ----------
     with col1:
