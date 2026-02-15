@@ -71,7 +71,7 @@ team_colors = {
     "New Zealand": ("#000000", "#808080", "#FFFFFF"),
     "Sri Lanka": ("#002366", "#FDB913", "#FFFFFF"),
     "Scotland": ("#0065BD", "#FFFFFF", "#000000"),
-    "Afghanistan": ("#D52B1E", "#000000", "#FFFFFF"),
+    "Afghanistan": ("#0064FF", "#000000", "#FFFFFF"),
     "USA": ("#002868", "#BF0A30", "#FFFFFF"),
     "Ireland": ("#169B62", "#FFFFFF", "#FF8200"),
     "Canada": ("#FF0000", "#FFFFFF", "#000000"),
