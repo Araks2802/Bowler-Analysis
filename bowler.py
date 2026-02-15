@@ -78,7 +78,7 @@ team_colors = {
     "Italy": ("#009246", "#FFFFFF", "#CE2B37"),
     "Netherlands": ("#EF7C00", "#FFFFFF", "#21468B"),
     "Namibia": ("#007A5E", "#FCD116", "#DB1C2C"),
-    "Zimbabwe": ("#007934", "#FCCE10", "#000000"),
+    "Zimbabwe": ("#EF3340", "#FCCE10", "#000000"),
     "Nepal": ("#DC143C", "#003893", "#FFFFFF"),
     "Oman": ("#CE1126", "#FFFFFF", "#000000"),
     "UAE": ("#00732F", "#FFFFFF", "#CE1126")
